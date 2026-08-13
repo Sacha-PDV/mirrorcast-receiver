@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MirrorCast Receiver</title>
+
+    <script src="https//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        text-align: center;
+      }
+
+      .wrap {
+        max-width: 900px;
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 42px;
+        margin-bottom: 16px;
+      }
+
+      p {
+        font-size: 28px;
+        margin: 12px 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <h1>MirrorCast Custom Receiver</h1>
+      <p id="status">Initialisation...</p>
+      <p id="message">Aucun message reçu</p>
+    </div>
+
+    <script>
+      const CUSTOM_NAMESPACE = "urn:x-cast:com.mirrorcast.debug";
+
+      const status = document.getElementById("status");
+      const message = document.getElementById("message");
+
+      try {
+        const context = cast.framework.CastReceiverContext.getInstance();
+
+        context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
+          message.textContent =
+            "Message reçu : " + JSON.stringify(event.data);
+        });
+
+        const options = new cast.framework.CastReceiverOptions();
+        options.customNamespaces = {
+          [CUSTOM_NAMESPACE]: cast.framework.system.MessageType.JSON
+        };
+
+        status.textContent = "Receiver prêt à démarrer";
+        context.start(options);
+        status.textContent = "Receiver démarré";
+      } catch (error) {
+        status.textContent = "Erreur JS : " + error.message;
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>
