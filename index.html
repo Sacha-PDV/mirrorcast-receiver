@@ -53,8 +53,17 @@
         const context = cast.framework.CastReceiverContext.getInstance();
 
         context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
-          message.textContent =
-            "Message reçu : " + JSON.stringify(event.data);
+        switch (event.data.type) {
+            case "start_stream":
+              message.textContent = "Message reçu : " + event.data.url;
+              break;
+            case "debug":
+                message.textContent = "Message reçu : " + event.data.message;
+              break;
+            default:
+              message.textContent = "Type de message inconnu : " + JSON.stringify(event.data);
+          }
+
         });
 
         const options = new cast.framework.CastReceiverOptions();
