@@ -55,7 +55,18 @@
         context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
         switch (event.data.type) {
             case "start_stream":
-              message.textContent = "Message reçu : " + event.data.url;
+              case "start_stream":
+                message.textContent = "Chargement de " + event.data.url;
+
+                fetch(event.data.url)
+                  .then((response) => response.text())
+                  .then((text) => {
+                    message.textContent = "Réponse HTTP : " + text;
+                  })
+                  .catch((error) => {
+                    message.textContent = "Erreur fetch : " + error.message;
+                  });
+                break;
               break;
             case "debug":
                 message.textContent = "Message reçu : " + event.data.message;
