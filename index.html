@@ -9,41 +9,43 @@
     <style>
       body {
         margin: 0;
-        background: #111;
+        background: #000;
         color: white;
         font-family: Arial, sans-serif;
+        overflow: hidden;
       }
 
       cast-media-player {
-        position: fixed;
-        inset: 0;
         --theme-hue: 210;
+        --splash-image: none;
+        position: absolute;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        background: black;
       }
 
       .overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        pointer-events: none;
-        background: rgba(0, 0, 0, 0.35);
-      }
-
-      .wrap {
-        max-width: 900px;
-        padding: 24px;
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        right: 24px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.45);
+        border-radius: 16px;
+        padding: 18px 22px;
+        backdrop-filter: blur(8px);
       }
 
       h1 {
-        font-size: 42px;
-        margin-bottom: 16px;
+        margin: 0 0 10px 0;
+        font-size: 28px;
       }
 
       p {
-        font-size: 28px;
-        margin: 12px 0;
+        margin: 6px 0;
+        font-size: 18px;
+        line-height: 1.35;
       }
     </style>
   </head>
@@ -52,11 +54,9 @@
     <cast-media-player></cast-media-player>
 
     <div class="overlay">
-      <div class="wrap">
-        <h1>MirrorCast Custom Receiver</h1>
-        <p id="status">Initialisation...</p>
-        <p id="message">Aucun message reçu</p>
-      </div>
+      <h1>MirrorCast Receiver</h1>
+      <p id="status">Initialisation...</p>
+      <p id="message">Aucun message reçu</p>
     </div>
 
     <script>
@@ -71,7 +71,7 @@
       async function loadHlsStream(session) {
         const mediaInfo = new cast.framework.messages.MediaInformation();
         mediaInfo.contentUrl = session.streamURL;
-        mediaInfo.contentType = "application/x-mpegURL";
+        mediaInfo.contentType = "application/vnd.apple.mpegurl";
 
         const loadRequest = new cast.framework.messages.LoadRequestData();
         loadRequest.media = mediaInfo;
@@ -83,75 +83,80 @@
       async function handleManagementMessage(data) {
         switch (data.type) {
           case "start_stream":
-            message.textContent = "Chargement de " + data.url;
+            status.textContent = "Chargement session...";
+            message.textContent = "Lecture de " + data.url;
 
             try {
               const response = await fetch(data.url);
               const session = await response.json();
 
-              if (session.status === "ready") {
-                message.textContent =
-                  "Session prête : " + session.streamURL +
-                  " | codec: " + session.videoCodec +
-                  " | transport: " + session.transport;
-
-                try {
-                  await loadHlsStream(session);
-                  status.textContent = "Chargement média demandé";
-                } catch (error) {
-                  status.textContent = "Erreur load player";
-                  message.textContent = "Erreur player : " + error.message;
-                }
-              } else {
+              if (session.status !== "ready") {
+                status.textContent = "Session invalide";
                 message.textContent =
                   "Erreur session : " + (session.message ?? "unknown_error");
+                return;
               }
+
+              status.textContent = "Session prête";
+              message.textContent =
+                "Flux : " + session.streamURL +
+                " | codec: " + session.videoCodec +
+                " | transport: " + session.transport;
+
+              await loadHlsStream(session);
+
+              status.textContent = "Lecture HLS démarrée";
+              message.textContent = "Lecture de " + session.streamURL;
             } catch (error) {
-              message.textContent = "Erreur fetch : " + error.message;
+              status.textContent = "Erreur receiver";
+              message.textContent = "Erreur : " + error.message;
             }
             break;
 
           case "debug":
+            status.textContent = "Message debug";
             message.textContent = "Message reçu : " + data.message;
             break;
 
           default:
+            status.textContent = "Message inconnu";
             message.textContent =
-              "Type de message inconnu : " + JSON.stringify(data);
+              "Type inconnu : " + JSON.stringify(data);
         }
       }
 
-      try {
-        context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
-          handleManagementMessage(event.data);
+      context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
+        handleManagementMessage(event.data);
+      });
+
+      const options = new cast.framework.CastReceiverOptions();
+      options.customNamespaces = {
+        [CUSTOM_NAMESPACE]: cast.framework.system.MessageType.JSON
+      };
+
+      window.handleManagementMessage = handleManagementMessage;
+
+      window.testStartStream = (url) => {
+        handleManagementMessage({
+          type: "start_stream",
+          url
         });
+      };
 
-        const options = new cast.framework.CastReceiverOptions();
-        options.customNamespaces = {
-          [CUSTOM_NAMESPACE]: cast.framework.system.MessageType.JSON
-        };
+      window.testDebugMessage = (messageText) => {
+        handleManagementMessage({
+          type: "debug",
+          message: messageText
+        });
+      };
 
-        window.handleManagementMessage = handleManagementMessage;
-
-        window.testStartStream = (url) => {
-          handleManagementMessage({
-            type: "start_stream",
-            url
-          });
-        };
-
-        window.testDebugMessage = (messageText) => {
-          handleManagementMessage({
-            type: "debug",
-            message: messageText
-          });
-        };
-
+      try {
         status.textContent = "Receiver prêt à démarrer";
         context.start(options);
         status.textContent = "Receiver démarré";
       } catch (error) {
-        status.textContent = "Erreur JS : " + error.message;
+        status.textContent = "Erreur JS";
+        message.textContent = error.message;
         console.error(error);
       }
     </script>
