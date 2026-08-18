@@ -62,7 +62,9 @@
               .then((data) => {
                 if (data.status === "ready") {
                   message.textContent =
-                    "Session prête : " + data.streamURL + " (" + data.videoCodec + ")";
+                    "Session prête : " + data.streamURL +
+                    " | codec: " + data.videoCodec +
+                    " | transport: " + data.transport;
                 } else {
                   message.textContent =
                     "Erreur session : " + (data.message ?? "unknown_error");
