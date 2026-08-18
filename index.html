@@ -49,43 +49,65 @@
       const status = document.getElementById("status");
       const message = document.getElementById("message");
 
+      async function handleManagementMessage(data) {
+        switch (data.type) {
+          case "start_stream":
+            message.textContent = "Chargement de " + data.url;
+
+            try {
+              const response = await fetch(data.url);
+              const session = await response.json();
+
+              if (session.status === "ready") {
+                message.textContent =
+                  "Session prête : " + session.streamURL +
+                  " | codec: " + session.videoCodec +
+                  " | transport: " + session.transport;
+              } else {
+                message.textContent =
+                  "Erreur session : " + (session.message ?? "unknown_error");
+              }
+            } catch (error) {
+              message.textContent = "Erreur fetch : " + error.message;
+            }
+            break;
+
+          case "debug":
+            message.textContent = "Message reçu : " + data.message;
+            break;
+
+          default:
+            message.textContent =
+              "Type de message inconnu : " + JSON.stringify(data);
+        }
+      }
+
       try {
         const context = cast.framework.CastReceiverContext.getInstance();
 
         context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
-        switch (event.data.type) {
-          case "start_stream":
-            message.textContent = "Chargement de " + event.data.url;
-
-            fetch(event.data.url)
-              .then((response) => response.json())
-              .then((data) => {
-                if (data.status === "ready") {
-                  message.textContent =
-                    "Session prête : " + data.streamURL +
-                    " | codec: " + data.videoCodec +
-                    " | transport: " + data.transport;
-                } else {
-                  message.textContent =
-                    "Erreur session : " + (data.message ?? "unknown_error");
-                }
-              })
-              .catch((error) => {
-                message.textContent = "Erreur fetch : " + error.message;
-              });
-            break;
-            case "debug":
-                message.textContent = "Message reçu : " + event.data.message;
-              break;
-            default:
-              message.textContent = "Type de message inconnu : " + JSON.stringify(event.data);
-          }
-
+          handleManagementMessage(event.data);
         });
 
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {
           [CUSTOM_NAMESPACE]: cast.framework.system.MessageType.JSON
+        };
+
+        window.handleManagementMessage = handleManagementMessage;
+
+        window.testStartStream = (url) => {
+          handleManagementMessage({
+            type: "start_stream",
+            url
+          });
+        };
+
+        window.testDebugMessage = (messageText) => {
+          handleManagementMessage({
+            type: "debug",
+            message: messageText
+          });
         };
 
         status.textContent = "Receiver prêt à démarrer";
