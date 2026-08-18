@@ -12,11 +12,23 @@
         background: #111;
         color: white;
         font-family: Arial, sans-serif;
+      }
+
+      cast-media-player {
+        position: fixed;
+        inset: 0;
+        --theme-hue: 210;
+      }
+
+      .overlay {
+        position: fixed;
+        inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 100vh;
         text-align: center;
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.35);
       }
 
       .wrap {
@@ -37,10 +49,14 @@
   </head>
 
   <body>
-    <div class="wrap">
-      <h1>MirrorCast Custom Receiver</h1>
-      <p id="status">Initialisation...</p>
-      <p id="message">Aucun message reçu</p>
+    <cast-media-player></cast-media-player>
+
+    <div class="overlay">
+      <div class="wrap">
+        <h1>MirrorCast Custom Receiver</h1>
+        <p id="status">Initialisation...</p>
+        <p id="message">Aucun message reçu</p>
+      </div>
     </div>
 
     <script>
@@ -48,6 +64,21 @@
 
       const status = document.getElementById("status");
       const message = document.getElementById("message");
+
+      const context = cast.framework.CastReceiverContext.getInstance();
+      const playerManager = context.getPlayerManager();
+
+      async function loadHlsStream(session) {
+        const mediaInfo = new cast.framework.messages.MediaInformation();
+        mediaInfo.contentUrl = session.streamURL;
+        mediaInfo.contentType = "application/x-mpegURL";
+
+        const loadRequest = new cast.framework.messages.LoadRequestData();
+        loadRequest.media = mediaInfo;
+        loadRequest.autoplay = true;
+
+        await playerManager.load(loadRequest);
+      }
 
       async function handleManagementMessage(data) {
         switch (data.type) {
@@ -63,6 +94,14 @@
                   "Session prête : " + session.streamURL +
                   " | codec: " + session.videoCodec +
                   " | transport: " + session.transport;
+
+                try {
+                  await loadHlsStream(session);
+                  status.textContent = "Chargement média demandé";
+                } catch (error) {
+                  status.textContent = "Erreur load player";
+                  message.textContent = "Erreur player : " + error.message;
+                }
               } else {
                 message.textContent =
                   "Erreur session : " + (session.message ?? "unknown_error");
@@ -83,8 +122,6 @@
       }
 
       try {
-        const context = cast.framework.CastReceiverContext.getInstance();
-
         context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
           handleManagementMessage(event.data);
         });
